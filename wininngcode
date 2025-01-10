@@ -1,0 +1,75 @@
+import windows
+
+import pandas as pd
+import polars as pl
+
+import kaggle_evaluation.jane_street_inference_s
+
+import numpy as np # linear algebra
+
+import polars as pl # type: ignore
+# ... existing code ...
+import zipfile
+
+# Extract the zip file first
+with zipfile.ZipFile(r"C:\Users\kenda\Downloads\jane-street-real-time-market-data-forecasting.zip", 'r') as zip_ref:
+    zip_ref.extractall('/kaggle/input')
+
+# Now you can walk through the extracted files
+for dirname, _, filenames in os.walk('/kaggle/input'):
+    for filename in filenames:
+        print(os.path.join(dirname, filename))
+
+train_test = "train.parquet"
+df = pd.read_parquetquet(train_file)
+
+# Display a preview of the dataset structure
+print(df.head())
+
+# Group the dataset by symbol_id, date_id, and time_id
+# Ensure each combination is unique
+grouped_df = df.groupby(['symbol_id', 'date_id', 'time_id','weight','feature_{00...78}','responder_{0...8}']).first().reset_index()
+
+# Process the data for responder_6
+# Filter out data only for responder_6
+responder_6_data = grouped_df[grouped_df['responder'] == 6]
+
+# Example: Calculate aggregated statistics for scoring
+# Aggregating data by symbol_id and date_id to get responder_6's activity summary
+responder_stats = (
+    responder_6_data
+    .groupby(['symbol_id', 'date_id'])
+    .agg(
+        total_entries=('time_id', 'count'),
+        min_time_id=('time_id', 'min'),
+        max_time_id=('time_id', 'max')
+    )
+    .reset_index()
+)
+
+# Handle irregular time_id spacing
+# Sort by time_id and compute time differences for each group
+responder_6_data = responder_6_data.sort_values(by=['symbol_id', 'date_id', 'time_id'])
+responder_6_data['time_diff'] = responder_6_data.groupby(['symbol_id', 'date_id'])['time_id'].diff()
+
+# Save the processed data for further analysis or scoring
+responder_6_data.to_csv("processed_responder_6_data.csv", index=False)
+
+# Print a sample of the processed data
+print(responder_6_data.head())
+
+# Handle new symbol_id values in the test set
+# Define a function to check for new symbol_id values
+def identify_new_symbols(train_symbols, test_symbols):
+    new_symbols = test_symbols.difference(train_symbols)
+    print(f"New symbol_id values in test set: {new_symbols}")
+    return new_symbols
+
+# Example usage with a test set
+test_file = "test.parquet"
+test_df = pd.read_parquet(test_file)
+
+train_symbols = set(df['symbol_id'].unique())
+test_symbols = set(test_df['symbol_id'].unique())
+
+new_symbols = identify_new_symbols(train_symbols, test_symbols)
